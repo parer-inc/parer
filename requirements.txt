@@ -1,7 +1,3 @@
 requests
-mysqlclient
 redis
 rq
-gunicorn
-Flask
-rq-dashboard

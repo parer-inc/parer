@@ -2,20 +2,8 @@
 import os
 import sys
 import time
-import json
-import requests
-from redis import Redis
-from rq import Worker, Queue, Connection
-
-
-def get_redis():
-    """Returns redis connection"""
-    try:
-        redis = Redis(host='redis', port=6379)
-    except Redis.DoesNotExist as error:
-        print(error)
-        sys.exit("Error: Faild connecting to redis")
-    return redis
+from rq import Queue
+from methods.connection import get_redis
 
 
 def await_job(job, t=60):
@@ -33,36 +21,48 @@ def enqueue_video(video):
     q = Queue('get_videos', connection=r)
     job = q.enqueue('get_videos.get_videos', video['id'])
     await_job(job)
-    print(job.result)
-    p_type = "upd" if len(job.result) == 1 else "new"
+    vid_type = "upd" if len(job.result) == 1 else "new"
 
     q = Queue('parse_video', connection=r)
-    # upd if upd arg
     job = q.enqueue('parse_video.parse_video')
     await_job(job)
+    data = job.result
+
+    if vid_type == "new":
+        q = Queue('write_videos', connection=r)
+        job = q.enqueue('write_videos.write_videos', [data])
+    else:
+        # MB ZROBITI CHEREZ DICTIONARY? TYPU JSON
+        q = Queue('update_videos', connection=r)
+        job = q.enqueue('update_videos.update_videos', [data])
 
 
 def enqueue_channel(chan):
     """Enqueues channel to parse"""
-    # SELECT * FROM CHANNELS WHERE ID = CHAN.ID
     q = Queue('get_channels', connection=r)
     job = q.enqueue('get_channels.get_channels',
                     "WHERE", "id", chan[1])
     await_job(job)
-    print(job.result)
-    p_type = "upd" if job.result != () else "new"
-    print(p_type)
+    chan_type = "upd" if job.result != () else "new"
+    #  not implemented yet
     q = Queue('parse_channel', connection=r)
     job = q.enqueue('parse_channel.parse_channel', chan[1])
     await_job(job)
-    q = Queue('write_channels', connection=r)
-    job = q.enqueue('write_channels.write_channels')
-    for vid in job.result:
-        enqueue_video(vid)
+    videos = job.result['videos']
+    data = job.result['data']
+    if chan_type == "new":
+        q = Queue('write_channels', connection=r)
+        job = q.enqueue('write_channels.write_channels', [data])
+    else:
+        # MB ZROBITI CHEREZ DICTIONARY? TYPU JSON
+        q = Queue('update_channels', connection=r)
+        job = q.enqueue('update_channels.update_channels', [data])
+
+    for video in videos:
+        enqueue_video(video)
     # remove from tasks
     q = Queue('delete_task', connection=r)
-    job = q.enqueue('delete_task.delete_task', chan['id'])
-    return job
+    job = q.enqueue('delete_task.delete_task', chan[0])
 
 
 def main():
@@ -76,7 +76,6 @@ def main():
         else:
             break
     chans_to_parse = job.result
-    print(chans_to_parse)
     # parsing channels
     if chans_to_parse is not None:
         for chan in chans_to_parse:

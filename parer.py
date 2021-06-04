@@ -23,39 +23,40 @@ def enqueue_video(video):
             q = Queue('write_videos', connection=r)
             job = q.enqueue('write_videos.write_videos', [data])
         else:
-            # MB ZROBITI CHEREZ DICTIONARY? TYPU JSON
             q = Queue('update_videos', connection=r)
             job = q.enqueue('update_videos.update_videos', [data])
 
 
 def enqueue_channel(chan):
     """Enqueues channel to parse"""
-    print("to get")
     q = Queue('get_channels', connection=r)
     job = q.enqueue('get_channels.get_channels',
                     "WHERE", "id", chan[1])
     await_job(job)
-    print("to got")
     chan_type = "upd" if job.result != () else "new"
-    #  not implemented yet
+
     q = Queue('parse_channel', connection=r)
-    job = q.enqueue('parse_channel.parse_channel', "UCXuqSBlHAE6Xw-yeJA0Tunw")
+    job = q.enqueue('parse_channel.parse_channel', chan[1])
     await_job(job, 1800)
     data = job.result
-    if chan_type == "new":
-        q = Queue('write_channels', connection=r)
-        job = q.enqueue('write_channels.write_channels', data)
+    if data is not None:
+        if chan_type == "new":
+            q = Queue('write_channels', connection=r)
+            job = q.enqueue('write_channels.write_channels', data)
+        else:
+            # MB ZROBITI CHEREZ DICTIONARY? TYPU JSON
+            q = Queue('update_channels', connection=r)
+            job = q.enqueue('update_channels.update_channels', data)
     else:
-        # MB ZROBITI CHEREZ DICTIONARY? TYPU JSON
-        q = Queue('update_channels', connection=r)
-        job = q.enqueue('update_channels.update_channels',data)
-
+        pass # LOG
+    q = Queue('delete_task', connection=r)
+    job = q.enqueue('delete_task.delete_task', chan[0])
 #    select from agaga
     #for video in videos:
     #    enqueue_video(video)
     # remove from tasks
-    q = Queue('delete_task', connection=r)
-    job = q.enqueue('delete_task.delete_task', chan[0])
+    q = Queue('delete_tmp_table', connection=r)
+    job = q.enqueue('delete_tmp_table.delete_tmp_table', chan[1]+"_tmp")
 
 
 def main():
@@ -65,15 +66,13 @@ def main():
     job = q.enqueue('get_tasks.get_tasks')
     await_job(job, 5)
     chans_to_parse = job.result
-    print(job.result)
-    print(chans_to_parse)
     # parsing channels
     if chans_to_parse != ():
         for chan in chans_to_parse:
             print("+job")
             enqueue_channel(chan)
     else:
-        time.sleep(30)  # wait for new tasks
+        time.sleep(60)  # wait for new tasks
 
 
 if __name__ == '__main__':

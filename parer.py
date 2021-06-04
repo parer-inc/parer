@@ -18,36 +18,37 @@ def enqueue_video(video):
     job = q.enqueue('parse_video.parse_video', "UCXuqSBlHAE6Xw-yeJA0Tunw")
     await_job(job, 1800)
     data = job.result
-
-    if vid_type == "new":
-        q = Queue('write_videos', connection=r)
-        job = q.enqueue('write_videos.write_videos', [data])
-    else:
-        # MB ZROBITI CHEREZ DICTIONARY? TYPU JSON
-        q = Queue('update_videos', connection=r)
-        job = q.enqueue('update_videos.update_videos', [data])
+    if data is not None:
+        if vid_type == "new":
+            q = Queue('write_videos', connection=r)
+            job = q.enqueue('write_videos.write_videos', [data])
+        else:
+            # MB ZROBITI CHEREZ DICTIONARY? TYPU JSON
+            q = Queue('update_videos', connection=r)
+            job = q.enqueue('update_videos.update_videos', [data])
 
 
 def enqueue_channel(chan):
     """Enqueues channel to parse"""
+    print("to get")
     q = Queue('get_channels', connection=r)
     job = q.enqueue('get_channels.get_channels',
                     "WHERE", "id", chan[1])
     await_job(job)
+    print("to got")
     chan_type = "upd" if job.result != () else "new"
     #  not implemented yet
     q = Queue('parse_channel', connection=r)
     job = q.enqueue('parse_channel.parse_channel', "UCXuqSBlHAE6Xw-yeJA0Tunw")
-    await_job(job)
+    await_job(job, 1800)
     data = job.result
-    print(data)
     if chan_type == "new":
         q = Queue('write_channels', connection=r)
-        job = q.enqueue('write_channels.write_channels', [data])
+        job = q.enqueue('write_channels.write_channels', data)
     else:
         # MB ZROBITI CHEREZ DICTIONARY? TYPU JSON
         q = Queue('update_channels', connection=r)
-        job = q.enqueue('update_channels.update_channels', [data])
+        job = q.enqueue('update_channels.update_channels',data)
 
 #    select from agaga
     #for video in videos:
@@ -62,15 +63,14 @@ def main():
     q = Queue('get_tasks', connection=r)
     # Getting tasks from db
     job = q.enqueue('get_tasks.get_tasks')
-    for i in range(5):
-        if job.result is None:
-            time.sleep(1)
-        else:
-            break
+    await_job(job, 5)
     chans_to_parse = job.result
+    print(job.result)
+    print(chans_to_parse)
     # parsing channels
-    if chans_to_parse is not None:
+    if chans_to_parse != ():
         for chan in chans_to_parse:
+            print("+job")
             enqueue_channel(chan)
     else:
         time.sleep(30)  # wait for new tasks

@@ -29,15 +29,16 @@ def enqueue_video(video):
 
 def enqueue_channel(chan):
     """Enqueues channel to parse"""
+
     q = Queue('get_channels', connection=r)
     job = q.enqueue('get_channels.get_channels',
                     "WHERE", "id", chan[1])
     await_job(job)
     chan_type = "upd" if job.result != () else "new"
 
-    q = Queue('parse_channel', connection=r)
+    q = Queue('parse_channel', connection=r, default_timeout=18000)
     job = q.enqueue('parse_channel.parse_channel', chan[1])
-    await_job(job, 1800)
+    await_job(job, 18000)
     data = job.result
     if data is not None:
         if chan_type == "new":
@@ -69,9 +70,11 @@ def main():
     # parsing channels
     if chans_to_parse != ():
         for chan in chans_to_parse:
-            print("+job")
-            enqueue_channel(chan)
+            print("+job", chan)
+            enqueue_channel(chan)  # will be implemented as a serivce later
+            time.sleep(5)
     else:
+        print(chans_to_parse, "Waiting for new tasks")
         time.sleep(60)  # wait for new tasks
 
 

@@ -10,10 +10,12 @@ def main(first = True):
     """Executes existing tasks and waits for new"""
     # Getting tasks from db
     #q = Queue('get_tasks', connection=r)
-    q = Queue('parse_video', connection=r)
-    job = q.enqueue('parse_video.parse_video', 'iIstaeDlf2A', True)
-    await_job(job, 5)
-    return False
+    #q = Queue('parse_video', connection=r)
+    #job = q.enqueue('parse_video.parse_video', 'iIstaeDlf2A', True)
+    #q = Queue('parse_channel', connection=r)
+    #job = q.enqueue('parse_channel.parse_channel', 'UCIIDymHgUB6wD91-h8wlZdQ')
+    #await_job(job, 5)
+    #return False
     if first or main.job.result is not None:
         q = Queue('get_tasks', connection=r)
         main.job = q.enqueue('get_tasks.get_tasks')
@@ -25,7 +27,7 @@ def main(first = True):
             for chan in chans_to_parse:
                 print("+job", chan)
                 main.job = q.enqueue('enqueue_channel.enqueue_channel', chan)
-                time.sleep(50000) # for test
+                # time.sleep(50000) # for test
             time.sleep(50)
         elif not chans_to_parse:
             print("Retrying to get tasks")

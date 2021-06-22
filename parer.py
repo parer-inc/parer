@@ -16,6 +16,11 @@ def main(first = True):
     #job = q.enqueue('parse_channel.parse_channel', 'UCIIDymHgUB6wD91-h8wlZdQ')
     #await_job(job, 5)
     #return False
+    if first:
+        time.sleep(20)
+        q = Queue('write_tasks', connection=r)
+        main.job = q.enqueue('write_tasks.write_tasks' , ['UCngjw6cGfzm6bUIDuhGMntg', 'UCXuqSBlHAE6Xw-yeJA0Tunw'])
+        await_job(main.job, 5)
     if first or main.job.result is not None:
         q = Queue('get_tasks', connection=r)
         main.job = q.enqueue('get_tasks.get_tasks')
@@ -24,6 +29,7 @@ def main(first = True):
         # enqueue_channel
         if chans_to_parse != () and chans_to_parse:
             q = Queue('enqueue_channel', connection=r)
+            time.sleep(9999999)
             for chan in chans_to_parse:
                 print("+job", chan)
                 main.job = q.enqueue('enqueue_channel.enqueue_channel', chan)
